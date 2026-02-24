@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import WebKit
 import Carbon
+import Security
 
 // Main entry point
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -295,6 +296,60 @@ struct Main {
     }
 }
 
+// MARK: - Keychain Storage
+
+enum KeychainHelper {
+    private static let service = "com.claude.usagebar"
+    private static let account = "claude_session_cookie"
+
+    static func save(_ value: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
+
+        // Delete any existing item first
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+
+        // Add the new item
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        return status == errSecSuccess
+    }
+
+    static func load() -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func delete() -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        let status = SecItemDelete(query as CFDictionary)
+        return status == errSecSuccess || status == errSecItemNotFound
+    }
+}
+
 class UsageManager: ObservableObject {
     @Published var sessionUsage: Int = 0
     @Published var sessionLimit: Int = 100
@@ -333,8 +388,20 @@ class UsageManager: ObservableObject {
     }
 
     func loadSessionCookie() {
-        if let savedCookie = UserDefaults.standard.string(forKey: "claude_session_cookie") {
+        // Load from Keychain
+        if let savedCookie = KeychainHelper.load() {
             sessionCookie = savedCookie
+            return
+        }
+
+        // Migrate from UserDefaults if present (one-time migration)
+        if let legacyCookie = UserDefaults.standard.string(forKey: "claude_session_cookie") {
+            sessionCookie = legacyCookie
+            if KeychainHelper.save(legacyCookie) {
+                UserDefaults.standard.removeObject(forKey: "claude_session_cookie")
+                UserDefaults.standard.synchronize()
+                NSLog("ClaudeUsage: Migrated cookie from UserDefaults to Keychain")
+            }
         }
     }
 
@@ -365,14 +432,18 @@ class UsageManager: ObservableObject {
     func saveSessionCookie(_ cookie: String) {
         NSLog("ClaudeUsage: Saving cookie, length: \(cookie.count)")
         sessionCookie = cookie
-        UserDefaults.standard.set(cookie, forKey: "claude_session_cookie")
-        UserDefaults.standard.synchronize()
-        NSLog("ClaudeUsage: Cookie saved successfully")
+        if KeychainHelper.save(cookie) {
+            NSLog("ClaudeUsage: Cookie saved to Keychain successfully")
+        } else {
+            NSLog("ClaudeUsage: Failed to save cookie to Keychain")
+        }
     }
 
     func clearSessionCookie() {
         NSLog("ClaudeUsage: Clearing cookie")
         sessionCookie = ""
+        let _ = KeychainHelper.delete()
+        // Also clean up any legacy UserDefaults entry
         UserDefaults.standard.removeObject(forKey: "claude_session_cookie")
         UserDefaults.standard.synchronize()
 
@@ -1091,7 +1162,7 @@ struct UsageView: View {
         .frame(width: 360)
         .onAppear {
             // Load saved cookie when view appears
-            if let savedCookie = UserDefaults.standard.string(forKey: "claude_session_cookie") {
+            if let savedCookie = KeychainHelper.load() {
                 sessionCookieInput = String(savedCookie.prefix(20)) + "..."
             }
             // Force refresh to ensure progress bars show colors

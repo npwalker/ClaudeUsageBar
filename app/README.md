@@ -99,11 +99,12 @@ Access settings by clicking the gear icon in the popup:
 
 ## 🔒 Privacy & Security
 
-- ✅ **All data stays on your Mac** - stored in UserDefaults only
-- ✅ **No analytics or tracking** - zero external services
-- ✅ **Session cookies stored locally** - never sent anywhere except claude.ai
+- ✅ **Session cookie stored in macOS Keychain** - encrypted at rest, protected by your login password
+- ✅ **All data stays on your Mac** - no external services beyond claude.ai
+- ✅ **No analytics or tracking** - zero third-party data collection
 - ✅ **No hardcoded credentials** - org ID extracted dynamically from your cookie
 - ✅ **Open source** - review the code yourself
+- ✅ **Automatic migration** - existing cookies in UserDefaults are migrated to Keychain on first launch
 
 ## 🎯 How It Works
 
@@ -186,6 +187,7 @@ Built with:
 - SwiftUI for the interface
 - AppKit for menu bar integration
 - Carbon for global keyboard shortcuts
+- Security framework for Keychain credential storage
 - NSUserNotification for alerts
 
 ---

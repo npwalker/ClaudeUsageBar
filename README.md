@@ -29,7 +29,7 @@ A lightweight, open-source macOS menu bar application that displays your Claude.
 - 🔔 **Smart notifications** - Alerts at 25%, 50%, 75%, 90% usage thresholds
 - ⌨️ **Keyboard shortcut** - Toggle popup with Cmd+U from anywhere
 - ⚡ **Auto-refresh** - Updates every 5 minutes automatically
-- 🔒 **Privacy-first** - All data stored locally on your Mac
+- 🔒 **Privacy-first** - Session cookie stored in macOS Keychain, encrypted at rest
 - 📊 **Pro plan support** - Shows weekly Sonnet usage for Pro subscribers
 - 🎯 **Menu bar only** - No Dock icon, stays out of your way
 
@@ -97,6 +97,7 @@ The built app will be in `app/build/ClaudeUsageBar.app`
 - **SwiftUI** - Modern macOS UI framework
 - **AppKit** - Menu bar integration
 - **Carbon** - Global keyboard shortcuts
+- **Security** - macOS Keychain for credential storage
 - **NSUserNotification** - System notifications (no permissions needed)
 
 ## 🤝 Contributing
