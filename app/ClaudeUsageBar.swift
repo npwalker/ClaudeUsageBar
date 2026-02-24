@@ -36,7 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Create popover
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 320, height: 260)
+        popover.contentSize = NSSize(width: 360, height: 420)
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView: UsageView(usageManager: usageManager))
 
